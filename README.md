@@ -8,79 +8,83 @@ snt-pwa/
 ├── manifest.json       # PWA manifest
 ├── sw.js               # Service worker for offline support
 ├── offline.html        # Offline fallback page
+├── browserconfig.xml   # Windows tile config
 ├── icons/              # App icons
 │   ├── icon.svg        # Source SVG (edit this)
-│   ├── icon-16.png
-│   ├── icon-32.png
-│   ├── icon-57.png
-│   ├── icon-60.png
-│   ├── icon-72.png
-│   ├── icon-76.png
-│   ├── icon-96.png
-│   ├── icon-114.png
-│   ├── icon-120.png
-│   ├── icon-128.png
-│   ├── icon-144.png
-│   ├── icon-152.png
-│   ├── icon-180.png
-│   ├── icon-192.png
-│   ├── icon-384.png
-│   ├── icon-512.png
-│   ├── icon-maskable-192.png
-│   ├── icon-maskable-512.png
-│   └── safari-pinned-tab.svg
+│   ├── icon-*.png      # Generated icons
+│   └── icon-maskable-*.png
+├── generate-icons.sh   # Bash icon generator
+├── generate-icons.py   # Python icon generator
 └── README.md
 ```
 
-## Quick Start
+## GitHub Pages Deployment
 
-### 1. Generate Icons
+### Option 1: Deploy from Root (Recommended)
 
-You have two options:
+1. Create a new repo (e.g., `snt-tools`)
+2. Copy all files to the root of the repo
+3. Push to GitHub
+4. Go to **Settings > Pages > Source: main branch, / (root)**
 
-#### Option A: Online Tool (Easiest)
+Your URL will be: `https://username.github.io/snt-tools/`
+
+### Option 2: Deploy from /docs Folder
+
+1. Create a `/docs` folder in your repo
+2. Copy all PWA files into `/docs`
+3. Push to GitHub
+4. Go to **Settings > Pages > Source: main branch, /docs**
+
+Your URL will be: `https://username.github.io/repo-name/`
+
+### Quick Deploy Commands
+
+```bash
+# Extract and enter directory
+unzip snt-pwa.zip
+cd snt-pwa
+
+# Initialize git
+git init
+git add .
+git commit -m "SNT Tools PWA"
+
+# Create GitHub repo first, then:
+git remote add origin https://github.com/YOUR_USERNAME/snt-tools.git
+git branch -M main
+git push -u origin main
+
+# Enable GitHub Pages in Settings > Pages
+```
+
+## Generate Custom Icons
+
+### Option A: Online Tool (Easiest)
 1. Go to https://realfavicongenerator.net/
 2. Upload your icon (512x512 PNG or SVG)
 3. Download the generated package
 4. Copy icons to the `icons/` folder
 
-#### Option B: Command Line (ImageMagick)
+### Option B: Command Line (ImageMagick)
 ```bash
 # Install ImageMagick
 # Ubuntu/Debian: sudo apt install imagemagick
 # macOS: brew install imagemagick
 
-# Run the icon generator script
 chmod +x generate-icons.sh
-./generate-icons.sh
+./generate-icons.sh your-logo.png
 ```
 
-#### Option C: Python Script
+### Option C: Python Script
 ```bash
 pip install Pillow cairosvg
-python generate-icons.py
+python generate-icons.py your-logo.png
 ```
 
-### 2. Deploy to GitHub Pages
+## Test Locally
 
-```bash
-# Initialize git repo
-git init
-git add .
-git commit -m "Initial PWA setup"
-
-# Create GitHub repo and push
-git remote add origin https://github.com/YOUR_USERNAME/snt-tools.git
-git branch -M main
-git push -u origin main
-
-# Enable GitHub Pages in repo settings:
-# Settings > Pages > Source: main branch
-```
-
-### 3. Test Locally
-
-You need a local server (service workers require HTTPS or localhost):
+Service workers require HTTPS or localhost:
 
 ```bash
 # Python 3

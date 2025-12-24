@@ -1,16 +1,16 @@
 // SNT Automation Tools - Service Worker
-const CACHE_NAME = 'snt-tools-v1';
-const OFFLINE_URL = '/offline.html';
+// Works with GitHub Pages (root or /docs folder)
 
-// Files to cache immediately on install
+const CACHE_NAME = 'snt-tools-v1';
+
+// Files to cache (relative paths)
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/offline.html',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  'https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&display=swap'
+  './',
+  './index.html',
+  './manifest.json',
+  './offline.html',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
 // Install event - cache core files
@@ -20,11 +20,15 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('[ServiceWorker] Pre-caching offline page');
-        return cache.addAll(PRECACHE_URLS);
+        // Cache files relative to the service worker location
+        const urlsToCache = PRECACHE_URLS.map(url => new URL(url, self.location.href).href);
+        return cache.addAll(urlsToCache);
       })
       .then(() => {
-        // Force waiting service worker to become active
         return self.skipWaiting();
+      })
+      .catch(err => {
+        console.log('[ServiceWorker] Pre-cache failed:', err);
       })
   );
 });
@@ -43,7 +47,6 @@ self.addEventListener('activate', event => {
         })
       );
     }).then(() => {
-      // Take control of all pages immediately
       return self.clients.claim();
     })
   );
@@ -51,11 +54,27 @@ self.addEventListener('activate', event => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', event => {
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin) && 
-      !event.request.url.includes('fonts.googleapis.com') &&
-      !event.request.url.includes('fonts.gstatic.com') &&
-      !event.request.url.includes('flagcdn.com')) {
+  const requestURL = new URL(event.request.url);
+  
+  // Skip cross-origin requests except for allowed CDNs
+  const allowedOrigins = [
+    'fonts.googleapis.com',
+    'fonts.gstatic.com',
+    'flagcdn.com',
+    'cdnjs.cloudflare.com'
+  ];
+  
+  const isAllowedExternal = allowedOrigins.some(origin => requestURL.hostname.includes(origin));
+  
+  if (requestURL.origin !== self.location.origin && !isAllowedExternal) {
+    return;
+  }
+
+  // Don't cache external tool iframes (GitHub Pages tools, Streamlit)
+  if (requestURL.hostname.includes('github.io') && requestURL.origin !== self.location.origin) {
+    return;
+  }
+  if (requestURL.hostname.includes('streamlit.app')) {
     return;
   }
 
@@ -63,40 +82,33 @@ self.addEventListener('fetch', event => {
     caches.match(event.request)
       .then(cachedResponse => {
         if (cachedResponse) {
-          // Return cached version
           return cachedResponse;
         }
 
-        // Clone the request
         const fetchRequest = event.request.clone();
 
         return fetch(fetchRequest)
           .then(response => {
             // Check if valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
+            if (!response || response.status !== 200) {
               return response;
             }
 
-            // Clone the response for caching
-            const responseToCache = response.clone();
-
-            // Cache the fetched response
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                // Don't cache POST requests or external iframes
-                if (event.request.method === 'GET' && 
-                    !event.request.url.includes('streamlit.app') &&
-                    !event.request.url.includes('github.io')) {
+            // Only cache same-origin GET requests
+            if (event.request.method === 'GET' && requestURL.origin === self.location.origin) {
+              const responseToCache = response.clone();
+              caches.open(CACHE_NAME)
+                .then(cache => {
                   cache.put(event.request, responseToCache);
-                }
-              });
+                });
+            }
 
             return response;
           })
           .catch(() => {
             // Network failed, show offline page for navigation requests
             if (event.request.mode === 'navigate') {
-              return caches.match(OFFLINE_URL);
+              return caches.match(new URL('./offline.html', self.location.href).href);
             }
             return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
           });
@@ -104,11 +116,10 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// Background sync for when connection is restored
+// Background sync (for future use)
 self.addEventListener('sync', event => {
   if (event.tag === 'sync-data') {
     console.log('[ServiceWorker] Background sync triggered');
-    // Handle background sync if needed
   }
 });
 
@@ -116,13 +127,9 @@ self.addEventListener('sync', event => {
 self.addEventListener('push', event => {
   const options = {
     body: event.data ? event.data.text() : 'New update available',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-72.png',
-    vibrate: [100, 50, 100],
-    data: {
-      dateOfArrival: Date.now(),
-      primaryKey: 1
-    }
+    icon: './icons/icon-192.png',
+    badge: './icons/icon-72.png',
+    vibrate: [100, 50, 100]
   };
 
   event.waitUntil(
@@ -134,11 +141,11 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   event.waitUntil(
-    clients.openWindow('/')
+    clients.openWindow('./')
   );
 });
 
-// Message handler for cache updates
+// Message handler for updates
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
